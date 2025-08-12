@@ -1,0 +1,16 @@
+ARG GO_VERSION=1.21
+ARG KUBE_VERSION=v1.29.0
+FROM golang:${GO_VERSION}-windowsservercore-ltsc2022 AS builder
+
+ARG KUBE_VERSION
+RUN powershell -Command " \
+    git clone https://github.com/kubernetes/kubernetes.git -b $env:KUBE_VERSION --depth=1 C:\kubernetes; \
+    cd C:\kubernetes; \
+    $env:CGO_ENABLED='0'; \
+    $env:GOOS='windows'; \
+    go build -o kubelet.exe .\cmd\kubelet; \
+    "
+
+FROM mcr.microsoft.com/windows/nanoserver:ltsc2022
+COPY --from=builder C:\kubernetes\kubelet.exe C:\kubelet.exe
+ENTRYPOINT ["C:\\kubelet.exe"]

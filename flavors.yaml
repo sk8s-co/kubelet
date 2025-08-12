@@ -1,0 +1,43 @@
+# Kubernetes v1.29.0 + Go 1.21
+- kube_version: v1.29.0
+  go_version: "1.21"
+  os: ubuntu-latest
+  dockerfile: Dockerfile.linux
+  platforms: >-
+    linux/amd64,
+    linux/arm64,
+    linux/arm/v7,
+    linux/ppc64le,
+    linux/s390x
+  setup_qemu: true
+  setup_buildx: true
+
+- kube_version: v1.29.0
+  go_version: "1.21"
+  os: windows-latest
+  dockerfile: Dockerfile.windows
+  platforms: windows/amd64
+  setup_qemu: false
+  setup_buildx: false
+
+# Kubernetes v1.30.0 + Go 1.22
+- kube_version: v1.30.0
+  go_version: "1.22"
+  os: ubuntu-latest
+  dockerfile: Dockerfile.linux
+  platforms: >-
+    linux/amd64,
+    linux/arm64,
+    linux/arm/v7,
+    linux/ppc64le,
+    linux/s390x
+  setup_qemu: true
+  setup_buildx: true
+
+- kube_version: v1.30.0
+  go_version: "1.22"
+  os: windows-latest
+  dockerfile: Dockerfile.windows
+  platforms: windows/amd64
+  setup_qemu: false
+  setup_buildx: false

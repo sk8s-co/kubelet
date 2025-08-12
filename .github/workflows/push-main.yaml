@@ -4,22 +4,30 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions: write-all
 
 jobs:
+  versions:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: set-matrix
+        run: |
+          echo "matrix=$(yq -o=json '.' flavors.yaml)" >> $GITHUB_OUTPUT
+
   build:
+    needs: versions
     strategy:
       matrix:
-        include:
-          - KUBE_VERSION: v1.29.0
-            GO_VERSION: 1.21
-            PLATFORMS: linux/amd64,linux/arm64
-          - KUBE_VERSION: v1.30.0
-            GO_VERSION: 1.22
-            PLATFORMS: linux/amd64,linux/arm64
-    runs-on: ubuntu-latest
+        include: ${{ fromJson(needs.versions.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/login-action@v3
@@ -28,7 +36,43 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/setup-qemu-action@v3
+        if: matrix.setup_qemu
       - uses: docker/setup-buildx-action@v3
+        if: matrix.setup_buildx
+      - uses: docker/build-push-action@v6
+        id: build
+        with:
+          file: ${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platforms }}
+          cache-from: type=gha,scope=kube-${{ matrix.kube_version }}-go-${{ matrix.go_version }}-${{ matrix.os }}
+          cache-to: type=gha,mode=max,scope=kube-${{ matrix.kube_version }}-go-${{ matrix.go_version }}-${{ matrix.os }}
+          pull: true
+          push: true
+          outputs: type=image,name=ghcr.io/${{ github.repository }},push-by-digest=true,name-canonical=true
+          build-args: |
+            GO_VERSION=${{ matrix.go_version }}
+            KUBE_VERSION=${{ matrix.kube_version }}
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          echo $digest > /tmp/digests/${{ matrix.kube_version }}-${{ matrix.os }}
+        shell: bash
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.kube_version }}-${{ matrix.os }}
+          path: /tmp/digests/
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    needs: [versions, build]
+    strategy:
+      matrix:
+        kube_version: [v1.29.0, v1.30.0]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - uses: docker/metadata-action@v5
         id: meta
         with:
@@ -37,17 +81,29 @@ jobs:
           flavor: |
             latest=false
           tags: |
-            type=semver,pattern={{version}},value=${{ matrix.KUBE_VERSION }},prefix=v,enable=${{ github.event_name != 'pull_request' }}
-            type=semver,pattern={{version}},value=${{ matrix.KUBE_VERSION }},prefix=v,suffix=-{{sha}},enable=${{ github.event_name != 'pull_request' }}
-      - uses: docker/build-push-action@v6
+            type=raw,value=${{ matrix.kube_version }},enable=${{ github.event_name != 'pull_request' }}
+            type=raw,value=${{ matrix.kube_version }}-{{sha}},enable=${{ github.event_name != 'pull_request' }}
+            type=ref,event=pr,prefix=${{ matrix.kube_version }}-pr-
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: ${{ matrix.PLATFORMS }}
-          cache-from: type=gha,scope=kube-${{ matrix.KUBE_VERSION }}-go-${{ matrix.GO_VERSION }}
-          cache-to: type=gha,mode=max,scope=kube-${{ matrix.KUBE_VERSION }}-go-${{ matrix.GO_VERSION }}
-          pull: true
-          push: true
-          build-args: |
-            GO_VERSION=${{ matrix.GO_VERSION }}
-            KUBE_VERSION=${{ matrix.KUBE_VERSION }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digests-${{ matrix.kube_version }}-*
+          path: /tmp/digests
+          merge-multiple: true
+      - name: Create manifest list and push
+        run: |
+          # Extract tags from metadata
+          TAGS=$(echo '${{ steps.meta.outputs.json }}' | jq -r '.tags[]')
+          
+          # Collect digests for this version from both OS builds
+          LINUX_DIGEST=$(cat /tmp/digests/${{ matrix.kube_version }}-ubuntu-latest)
+          WINDOWS_DIGEST=$(cat /tmp/digests/${{ matrix.kube_version }}-windows-latest)
+          
+          for tag in $TAGS; do
+            docker buildx imagetools create -t $tag $LINUX_DIGEST $WINDOWS_DIGEST
+          done
