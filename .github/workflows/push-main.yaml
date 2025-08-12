@@ -9,18 +9,18 @@ on:
 permissions: write-all
 
 jobs:
-  strategy:
-    matrix:
-      KUBE_VERSION: [v1.29.0, v1.30.0, v1.31.0]
-      GO_VERSION: [1.21, 1.22]
-      include:
-        - KUBE_VERSION: v1.29.0
-          GO_VERSION: 1.21
+  build:
+    strategy:
+      matrix:
+        KUBE_VERSION: [v1.29.0, v1.30.0, v1.31.0]
+        GO_VERSION: [1.21, 1.22]
+        include:
+          - KUBE_VERSION: v1.29.0
+            GO_VERSION: 1.21
         # - KUBE_VERSION: v1.30.0
         #   GO_VERSION: 1.22
         # - KUBE_VERSION: v1.31.0
         #   GO_VERSION: 1.22
-  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
