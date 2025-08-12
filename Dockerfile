@@ -6,8 +6,9 @@ ARG KUBE_VERSION
 RUN --mount=type=cache,target=/go \
     git clone https://github.com/kubernetes/kubernetes.git -b ${KUBE_VERSION} --depth=1 /kubernetes && \
     cd /kubernetes && \
-    make all WHAT=cmd/kubelet
+    CGO_ENABLED=0 make all WHAT=cmd/kubelet && \
+    mv /kubernetes/_output/local/go/bin/kubelet /usr/bin/kubelet
 
 FROM scratch
-COPY --from=builder /kubernetes/_output/bin/kubelet /usr/bin/kubelet
-ENTRYPOINT [ "kubelet" ]
+COPY --from=builder /usr/bin/kubelet /usr/bin/kubelet
+ENTRYPOINT [ "/usr/bin/kubelet" ]
