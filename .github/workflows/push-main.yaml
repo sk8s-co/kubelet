@@ -12,15 +12,13 @@ jobs:
   build:
     strategy:
       matrix:
-        KUBE_VERSION: [v1.29.0, v1.30.0, v1.31.0]
-        GO_VERSION: [1.21, 1.22]
         include:
           - KUBE_VERSION: v1.29.0
             GO_VERSION: 1.21
-        # - KUBE_VERSION: v1.30.0
-        #   GO_VERSION: 1.22
-        # - KUBE_VERSION: v1.31.0
-        #   GO_VERSION: 1.22
+            PLATFORMS: linux/amd64
+          - KUBE_VERSION: v1.30.0
+            GO_VERSION: 1.22
+            PLATFORMS: linux/amd64
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,18 +37,18 @@ jobs:
           tags: |
             type=schedule
             type=semver,pattern={{version}},value=${{ matrix.KUBE_VERSION }},enable=${{ github.event_name != 'pull_request' }}
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha
+            type=semver,pattern={{version}}-{{sha}},value=${{ matrix.KUBE_VERSION }},enable=${{ github.event_name != 'pull_request' }}
+            type=ref,event=branch,suffix=-{{sha}}
+            type=ref,event=pr,suffix=-{{sha}}
       - uses: docker/build-push-action@v6
         with:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64,linux/arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          platforms: ${{ matrix.PLATFORMS }}
+          cache-from: type=gha,scope=kube-${{ matrix.KUBE_VERSION }}-go-${{ matrix.GO_VERSION }}
+          cache-to: type=gha,mode=max,scope=kube-${{ matrix.KUBE_VERSION }}-go-${{ matrix.GO_VERSION }}
           pull: true
           push: true
-          arguments: |
+          build-args: |
             GO_VERSION=${{ matrix.GO_VERSION }}
             KUBE_VERSION=${{ matrix.KUBE_VERSION }}
