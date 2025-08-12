@@ -39,8 +39,9 @@ jobs:
           tags: |
             type=semver,pattern={{version}},value=${{ matrix.KUBE_VERSION }},enable=${{ github.event_name != 'pull_request' }}
             type=semver,pattern={{version}},value=${{ matrix.KUBE_VERSION }},suffix=-{{sha}},enable=${{ github.event_name != 'pull_request' }}
-            type=ref,event=branch,suffix=-{{sha}}
-            type=ref,event=pr,suffix=-{{sha}}
+            # TODO: PR and ref tags
+            # type=semver,pattern={{version}},value=${{ matrix.KUBE_VERSION }},suffix=-{{ref}}
+            # type=semver,pattern={{version}},value=${{ matrix.KUBE_VERSION }},suffix=-{{pr}}
       # - uses: docker/build-push-action@v6
       #   with:
       #     tags: ${{ steps.meta.outputs.tags }}
