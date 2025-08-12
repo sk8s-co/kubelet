@@ -34,21 +34,22 @@ jobs:
         with:
           images: |
             ghcr.io/${{ github.repository }}
+          flavor: |
+            latest=false
           tags: |
-            type=schedule
             type=semver,pattern={{version}},value=${{ matrix.KUBE_VERSION }},enable=${{ github.event_name != 'pull_request' }}
-            type=semver,pattern={{version}}-{{sha}},value=${{ matrix.KUBE_VERSION }},enable=${{ github.event_name != 'pull_request' }}
+            type=semver,pattern={{version}},value=${{ matrix.KUBE_VERSION }},suffix=-{{sha}},enable=${{ github.event_name != 'pull_request' }}
             type=ref,event=branch,suffix=-{{sha}}
             type=ref,event=pr,suffix=-{{sha}}
-      - uses: docker/build-push-action@v6
-        with:
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: ${{ matrix.PLATFORMS }}
-          cache-from: type=gha,scope=kube-${{ matrix.KUBE_VERSION }}-go-${{ matrix.GO_VERSION }}
-          cache-to: type=gha,mode=max,scope=kube-${{ matrix.KUBE_VERSION }}-go-${{ matrix.GO_VERSION }}
-          pull: true
-          push: true
-          build-args: |
-            GO_VERSION=${{ matrix.GO_VERSION }}
-            KUBE_VERSION=${{ matrix.KUBE_VERSION }}
+      # - uses: docker/build-push-action@v6
+      #   with:
+      #     tags: ${{ steps.meta.outputs.tags }}
+      #     labels: ${{ steps.meta.outputs.labels }}
+      #     platforms: ${{ matrix.PLATFORMS }}
+      #     cache-from: type=gha,scope=kube-${{ matrix.KUBE_VERSION }}-go-${{ matrix.GO_VERSION }}
+      #     cache-to: type=gha,mode=max,scope=kube-${{ matrix.KUBE_VERSION }}-go-${{ matrix.GO_VERSION }}
+      #     pull: true
+      #     push: true
+      #     build-args: |
+      #       GO_VERSION=${{ matrix.GO_VERSION }}
+      #       KUBE_VERSION=${{ matrix.KUBE_VERSION }}
