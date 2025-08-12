@@ -19,14 +19,13 @@ jobs:
     steps:
       - id: set-matrix
         run: |
-          echo 'matrix=[{"kube_version": "v1.29.0", "go_version": "1.21"}, {"kube_version": "v1.30.0", "go_version": "1.22"}]' >> $GITHUB_OUTPUT
+          echo "matrix=$(yq -o=json '.' flavors.yaml)" >> $GITHUB_OUTPUT
 
   build:
     needs: versions
     strategy:
       matrix:
         include: ${{ fromJson(needs.versions.outputs.matrix) }}
-        os: [ubuntu-latest, windows-2019]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -36,13 +35,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/setup-qemu-action@v3
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.setup_qemu
       - uses: docker/setup-buildx-action@v3
+        if: matrix.setup_buildx
       - uses: docker/build-push-action@v6
         id: build
         with:
-          file: ${{ matrix.os == 'ubuntu-latest' && 'Dockerfile.linux' || 'Dockerfile.windows' }}
-          platforms: ${{ matrix.os == 'ubuntu-latest' && 'linux/amd64,linux/arm64,linux/arm/v7,linux/ppc64le,linux/s390x' || 'windows/amd64' }}
+          file: ${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platforms }}
           cache-from: type=gha,scope=kube-${{ matrix.kube_version }}-go-${{ matrix.go_version }}-${{ matrix.os }}
           cache-to: type=gha,mode=max,scope=kube-${{ matrix.kube_version }}-go-${{ matrix.go_version }}-${{ matrix.os }}
           pull: true
@@ -56,7 +56,6 @@ jobs:
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
           echo $digest > /tmp/digests/${{ matrix.kube_version }}-${{ matrix.os }}
-          echo "digest=$digest" >> $GITHUB_OUTPUT
         shell: bash
       - uses: actions/upload-artifact@v4
         with:
@@ -69,7 +68,7 @@ jobs:
     needs: [versions, build]
     strategy:
       matrix:
-        include: ${{ fromJson(needs.versions.outputs.matrix) }}
+        kube_version: [v1.29.0, v1.30.0]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -102,7 +101,7 @@ jobs:
           
           # Collect digests for this version from both OS builds
           LINUX_DIGEST=$(cat /tmp/digests/${{ matrix.kube_version }}-ubuntu-latest)
-          WINDOWS_DIGEST=$(cat /tmp/digests/${{ matrix.kube_version }}-windows-2019)
+          WINDOWS_DIGEST=$(cat /tmp/digests/${{ matrix.kube_version }}-windows-latest)
           
           for tag in $TAGS; do
             docker buildx imagetools create -t $tag $LINUX_DIGEST $WINDOWS_DIGEST
