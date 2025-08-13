@@ -14,10 +14,10 @@ jobs:
       matrix:
         include:
           - KUBE_VERSION: v1.29.0
-            GO_VERSION: 1.21
+            GO_VERSION_KUBE: 1.21
             PLATFORMS: linux/amd64,linux/arm64
           - KUBE_VERSION: v1.30.0
-            GO_VERSION: 1.22
+            GO_VERSION_KUBE: 1.22
             PLATFORMS: linux/amd64,linux/arm64
     runs-on: ubuntu-latest
     steps:
@@ -49,5 +49,5 @@ jobs:
           pull: true
           push: true
           build-args: |
-            GO_VERSION=${{ matrix.GO_VERSION }}
+            GO_VERSION_KUBE=${{ matrix.GO_VERSION }}
             KUBE_VERSION=${{ matrix.KUBE_VERSION }}
