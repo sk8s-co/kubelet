@@ -49,5 +49,5 @@ jobs:
           pull: true
           push: true
           build-args: |
-            GO_VERSION_KUBE=${{ matrix.GO_VERSION }}
+            GO_VERSION_KUBE=${{ matrix.GO_VERSION_KUBE }}
             KUBE_VERSION=${{ matrix.KUBE_VERSION }}
