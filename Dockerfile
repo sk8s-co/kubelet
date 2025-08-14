@@ -13,6 +13,9 @@ ARG CONMON_VERSION=v2.1.13
 ARG GO_VERSION_RUNC=1.23
 ARG RUNC_VERSION=v1.3.0
 
+ARG FOREGO_VERSION=0.18
+FROM nginxproxy/forego:${FOREGO_VERSION} AS forego
+
 FROM golang:${GO_VERSION_CNI}-alpine AS builder-cni
 
 ARG CNI_VERSION
@@ -95,4 +98,6 @@ COPY --from=builder-crio /cri-o/bin/crio /usr/bin/crio
 COPY --from=builder-conmon /conmon/bin/conmon /usr/bin/conmon
 COPY --from=builder-runc /runc/runc /usr/bin/runc
 COPY --from=builder-kubelet /usr/bin/kubelet /usr/bin/kubelet
+COPY --from=forego /usr/local/bin/forego /usr/bin/forego
+
 ENTRYPOINT [ "/usr/bin/kubelet" ]
