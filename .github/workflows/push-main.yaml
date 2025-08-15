@@ -23,6 +23,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
+      - name: Setup kubectl and plugins
+      - name: Setup kubectl
+        uses: marcofranssen/setup-kubectl@v0.3.0
+        with:
+          enable-plugins: true
+      - name: Install kuttl
+        run: kubectl krew install kuttl
       - name: Run Tests
         run: |
           make KUBE_VERSION=${{ matrix.KUBE_VERSION }} GO_VERSION_KUBE=${{ matrix.GO_VERSION_KUBE }}
