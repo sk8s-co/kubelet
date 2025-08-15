@@ -157,6 +157,7 @@ services:
         condition: service_completed_successfully
     privileged: true
     pid: host
+    network_mode: host
     security_opt:
       - apparmor=unconfined
       - seccomp=unconfined
@@ -164,7 +165,7 @@ services:
       - /run
       - /var/run
     volumes:
-      - config:/config
+      - .:/config
       - certs:/certs
       - data:/data
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
