@@ -48,8 +48,8 @@ jobs:
   #         name: test-logs-${{ matrix.KUBE_VERSION }}
   #         path: tests/logs.out
   build:
-    needs:
-      - test
+    # needs:
+    #   - test
     strategy:
       matrix:
         include:
