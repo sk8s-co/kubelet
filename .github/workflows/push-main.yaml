@@ -13,11 +13,20 @@ jobs:
     strategy:
       matrix:
         include:
-          - KUBE_VERSION: v1.29.0
+          - KUBE_VERSION: v1.29.15
             GO_VERSION_KUBE: 1.21
             PLATFORMS: linux/amd64,linux/arm64
-          - KUBE_VERSION: v1.30.0
+          - KUBE_VERSION: v1.30.14
             GO_VERSION_KUBE: 1.22
+            PLATFORMS: linux/amd64,linux/arm64
+          - KUBE_VERSION: v1.31.12
+            GO_VERSION_KUBE: 1.22
+            PLATFORMS: linux/amd64,linux/arm64
+          - KUBE_VERSION: v1.32.8
+            GO_VERSION_KUBE: 1.23
+            PLATFORMS: linux/amd64,linux/arm64
+          - KUBE_VERSION: v1.33.4
+            GO_VERSION_KUBE: 1.24
             PLATFORMS: linux/amd64,linux/arm64
     runs-on: ubuntu-latest
     steps:

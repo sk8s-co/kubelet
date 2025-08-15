@@ -13,7 +13,7 @@ services:
     restart: no
 
   kubeconfig:
-    image: bitnami/kubectl:1.29.0
+    image: bitnami/kubectl:1.33.4
     user: root
     volumes:
       - data:/data
@@ -76,7 +76,7 @@ services:
       start_period: 1s
 
   kube-apiserver:
-    image: registry.k8s.io/kube-apiserver:v1.29.0
+    image: registry.k8s.io/kube-apiserver:v1.33.4
     depends_on:
       kubeconfig:
         condition: service_completed_successfully
@@ -105,7 +105,7 @@ services:
       - --v=3
 
   kube-controller-manager:
-    image: registry.k8s.io/kube-controller-manager:v1.29.0
+    image: registry.k8s.io/kube-controller-manager:v1.33.4
     depends_on:
       kubeconfig:
         condition: service_completed_successfully
@@ -122,7 +122,7 @@ services:
       - --cluster-cidr=10.244.0.0/16
 
   kube-scheduler:
-    image: registry.k8s.io/kube-scheduler:v1.29.0
+    image: registry.k8s.io/kube-scheduler:v1.33.4
     depends_on:
       kubeconfig:
         condition: service_completed_successfully
