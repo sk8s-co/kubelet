@@ -26,9 +26,9 @@ jobs:
       - name: Setup kubectl
         uses: marcofranssen/setup-kubectl@v0.3.0
         with:
-          enable-plugins: true
-      - name: Install kuttl
-        run: kubectl krew install kuttl
+          kubectlVersion: ${{ matrix.KUBE_VERSION }}
+          enblePlugins: true
+          plugins: krew
       - name: Run Tests
         run: |
           make KUBE_VERSION=${{ matrix.KUBE_VERSION }} GO_VERSION_KUBE=${{ matrix.GO_VERSION_KUBE }}
