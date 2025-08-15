@@ -29,6 +29,19 @@ There is a [`docker-compose.yml`](./tests/docker-compose.yml) that will start up
 make up
 ```
 
+#### Running `kubectl`
+
+Following a `make up` command, a `kubeconfig` is placed in `tests/`:
+
+```bash
+export KUBECONFIG=tests/kubeconfig
+kubectl get nodes
+kubectl run hello-world --image=hello-world --restart=Never --attach --rm
+```
+
+> [!NOTE]  
+> Don't save the `kubeconfig`. It's regenerated each time the stack is started.
+
 ### Stopping
 
 ```bash
