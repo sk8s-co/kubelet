@@ -37,6 +37,7 @@ services:
         kubectl config set-credentials default-user --client-certificate=/data/localhost.crt --client-key=/data/localhost.key --kubeconfig=/work/kubeconfig --embed-certs=true &&
         kubectl config set-context default-context --cluster=localhost --user=default-user --kubeconfig=/work/kubeconfig &&
         kubectl config use-context default-context --kubeconfig=/work/kubeconfig
+        chmod ugo+r /work/kubeconfig
     restart: no
 
   etcd:
