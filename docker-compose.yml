@@ -1,0 +1,157 @@
+services:
+  certs:
+    image: alpine/openssl:latest
+    volumes:
+      - data:/data
+    command: >
+      req -x509 -newkey rsa:4096 -nodes 
+        -keyout /data/localhost.key 
+        -out /data/localhost.crt 
+        -days 365 
+        -subj '/CN=localhost' 
+        -addext 'subjectAltName=IP:127.0.0.1,DNS:localhost,DNS:host.docker.internal,DNS:etcd,DNS:kube-apiserver'
+    restart: no
+
+  kubeconfig:
+    image: bitnami/kubectl:1.29.0
+    user: root
+    volumes:
+      - data:/data
+    depends_on:
+      certs:
+        condition: service_completed_successfully
+    entrypoint: []
+    command:
+      - /bin/bash
+      - -c
+      - |
+        kubectl config set-cluster local-cluster --server=https://kube-apiserver:6443 --certificate-authority=/data/localhost.crt --kubeconfig=/data/kubeconfig &&
+        kubectl config set-credentials default-user --client-certificate=/data/localhost.crt --client-key=/data/localhost.key --kubeconfig=/data/kubeconfig &&
+        kubectl config set-context default-context --cluster=local-cluster --user=default-user --kubeconfig=/data/kubeconfig &&
+        kubectl config use-context default-context --kubeconfig=/data/kubeconfig
+    restart: no
+
+  etcd:
+    image: gcr.io/etcd-development/etcd:v3.5.15
+    tmpfs:
+      - /etcd
+    volumes:
+      - data:/data
+    depends_on:
+      certs:
+        condition: service_completed_successfully
+    command: >
+      /usr/local/bin/etcd
+      --name=etcd0
+      --data-dir=/etcd
+      --cert-file=/data/localhost.crt
+      --key-file=/data/localhost.key
+      --client-cert-file=/data/localhost.crt
+      --client-key-file=/data/localhost.key
+      --trusted-ca-file=/data/localhost.crt
+      --peer-cert-file=/data/localhost.crt
+      --peer-key-file=/data/localhost.key
+      --peer-trusted-ca-file=/data/localhost.crt
+      --peer-client-cert-auth=true
+      --client-cert-auth=true
+      --listen-client-urls=https://0.0.0.0:2379
+      --advertise-client-urls=https://etcd:2379
+      --listen-peer-urls=https://0.0.0.0:2380
+      --initial-advertise-peer-urls=https://etcd:2380
+      --initial-cluster=etcd0=https://etcd:2380
+      --initial-cluster-token=etcd-cluster-1
+      --initial-cluster-state=new
+    healthcheck:
+      test: ["CMD", 
+        "etcdctl", 
+        "--endpoints=https://etcd:2379", 
+        "--cert=/data/localhost.crt",
+        "--key=/data/localhost.key",
+        "--cacert=/data/localhost.crt",
+        "endpoint", "health"
+      ]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+      start_period: 1s
+
+  kube-apiserver:
+    image: registry.k8s.io/kube-apiserver:v1.29.0
+    depends_on:
+      kubeconfig:
+        condition: service_completed_successfully
+    volumes:
+      - data:/data
+    command:
+      - /usr/local/bin/kube-apiserver
+      - --advertise-address=0.0.0.0
+      - --etcd-servers=https://etcd:2379
+      - --etcd-keyfile=/data/localhost.key
+      - --etcd-certfile=/data/localhost.crt
+      - --etcd-cafile=/data/localhost.crt
+      - --tls-cert-file=/data/localhost.crt
+      - --tls-private-key-file=/data/localhost.key
+      - --client-ca-file=/data/localhost.crt
+      - --service-account-key-file=/data/localhost.crt
+      - --service-account-signing-key-file=/data/localhost.key
+      - --service-account-issuer=https://kubernetes.default.svc.cluster.local
+      - --allow-privileged=true
+      - --endpoint-reconciler-type=none
+      - --feature-gates=APIServerIdentity=false
+      - --authorization-mode=AlwaysAllow
+      - --service-cluster-ip-range=10.96.0.0/16
+      - --kubelet-client-certificate=/data/localhost.crt
+      - --kubelet-client-key=/data/localhost.key
+      - --v=3
+
+  kube-controller-manager:
+    image: registry.k8s.io/kube-controller-manager:v1.29.0
+    depends_on:
+      kubeconfig:
+        condition: service_completed_successfully
+    volumes:
+      - data:/data
+    command:
+      - /usr/local/bin/kube-controller-manager
+      - --kubeconfig=/data/kubeconfig
+      - --service-account-private-key-file=/data/localhost.key
+      - --root-ca-file=/data/localhost.crt
+      - --cluster-signing-cert-file=/data/localhost.crt
+      - --cluster-signing-key-file=/data/localhost.key
+      - --leader-elect=false
+      - --cluster-cidr=10.244.0.0/16
+
+  kube-scheduler:
+    image: registry.k8s.io/kube-scheduler:v1.29.0
+    depends_on:
+      kubeconfig:
+        condition: service_completed_successfully
+    volumes:
+      - data:/data
+    command:
+      - /usr/local/bin/kube-scheduler
+      - --kubeconfig=/data/kubeconfig
+      - --leader-elect=false
+
+  kubelet:
+    build:
+      context: .
+    depends_on:
+      kubeconfig:
+        condition: service_completed_successfully
+    environment:
+      - KUBECONFIG=/data/kubeconfig
+    privileged: true
+    pid: host
+    security_opt:
+      - apparmor=unconfined
+      - seccomp=unconfined
+    tmpfs:
+      - /run
+      - /var/run
+    volumes:
+      - data:/data
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+
+volumes:
+  data: {}

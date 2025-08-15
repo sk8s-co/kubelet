@@ -15,6 +15,7 @@ ARG RUNC_VERSION=v1.3.0
 
 ARG FOREGO_VERSION=0.18
 FROM nginxproxy/forego:${FOREGO_VERSION} AS forego
+FROM registry.k8s.io/kubectl:${KUBE_VERSION} AS kubectl
 
 FROM golang:${GO_VERSION_CNI}-alpine AS builder-cni
 
@@ -56,12 +57,19 @@ RUN --mount=type=cache,target=/go-${GO_VERSION_CONMON} \
     gcc \
     musl-dev \
     glib-dev \
+    glib-static \
     libseccomp-dev \
+    libseccomp-static \
+    gettext-dev \
+    gettext-static \
     pkgconfig \
     bash && \
     git clone https://github.com/containers/conmon.git -b ${CONMON_VERSION} --depth=1 /conmon && \
     cd /conmon && \
-    CGO_ENABLED=0 make all
+    CGO_ENABLED=0 CFLAGS="-static -pthread" LDFLAGS="-static -pthread -lm" make all VERSION=${CONMON_VERSION#v}
+
+# Smoke test
+RUN /conmon/bin/conmon --version
 
 FROM golang:${GO_VERSION_RUNC}-alpine AS builder-runc
 
@@ -75,11 +83,12 @@ RUN --mount=type=cache,target=/go-${GO_VERSION_RUNC} \
     gcc \
     musl-dev \
     libseccomp-dev \
+    libseccomp-static \
     linux-headers \
     bash && \
     git clone https://github.com/opencontainers/runc.git -b ${RUNC_VERSION} --depth=1 /runc && \
     cd /runc && \
-    CGO_ENABLED=0 make
+    CGO_ENABLED=0 make static
 
 FROM golang:${GO_VERSION_KUBE}-alpine AS builder-kubelet
 
@@ -89,15 +98,24 @@ RUN apk add --no-cache git make bash
 RUN --mount=type=cache,target=/go-${GO_VERSION_KUBE} \
     git clone https://github.com/kubernetes/kubernetes.git -b ${KUBE_VERSION} --depth=1 /kubernetes && \
     cd /kubernetes && \
-    CGO_ENABLED=0 make all WHAT=cmd/kubelet && \
+    CGO_ENABLED=0 make all WHAT=cmd/kubelet KUBE_STATIC_OVERRIDES=kubelet && \
     mv /kubernetes/_output/local/go/bin/kubelet /usr/bin/kubelet
 
-FROM scratch
+FROM alpine:latest
+
+RUN apk add --no-cache iptables
 COPY --from=builder-cni /cni/bin/ /opt/cni/bin/
 COPY --from=builder-crio /cri-o/bin/crio /usr/bin/crio
+COPY --from=builder-crio /cri-o/bin/pinns /usr/bin/pinns
 COPY --from=builder-conmon /conmon/bin/conmon /usr/bin/conmon
 COPY --from=builder-runc /runc/runc /usr/bin/runc
 COPY --from=builder-kubelet /usr/bin/kubelet /usr/bin/kubelet
+COPY --from=kubectl /bin/kubectl /usr/bin/kubectl
 COPY --from=forego /usr/local/bin/forego /usr/bin/forego
 
-ENTRYPOINT [ "/usr/bin/kubelet" ]
+COPY etc /etc
+COPY var /var
+
+WORKDIR /var/task
+ENTRYPOINT [ "/usr/bin/forego" ]
+CMD [ "start", "-r", "-f", "/var/task/Procfile" ]
