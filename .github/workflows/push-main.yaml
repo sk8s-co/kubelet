@@ -34,6 +34,10 @@ jobs:
           kubectlVersion: ${{ matrix.KUBE_VERSION }}
           enablePlugins: true
           plugins: kuttl
+      - name: Setup cgroups for CRI-O
+        run: |
+          sudo mkdir -p /sys/fs/cgroup/crio
+          sudo mount -t cgroup -o none,name=crio cgroup /sys/fs/cgroup/crio || true
       - name: Run Tests
         run: |
           make KUBE_VERSION=${{ matrix.KUBE_VERSION }} GO_VERSION_KUBE=${{ matrix.GO_VERSION_KUBE }}
