@@ -11,11 +11,11 @@ _preflight:
 	@kubectl krew version >/dev/null 2>&1 || { echo "krew not found.\n\tInstall with: brew install krew"; exit 1; }
 	@kubectl krew list | grep -q kuttl || { echo "kuttl plugin not found.\n\tInstall with: kubectl krew install kuttl"; exit 1; }
 
-_up:
+up:
 	@KUBE_VERSION=$(KUBE_VERSION) GO_VERSION_KUBE=$(GO_VERSION_KUBE) \
 	docker compose -f tests/docker-compose.yml up --build --force-recreate --remove-orphans -d
 
-_down:
+down:
 	@docker compose -f tests/docker-compose.yml down --volumes --remove-orphans
 
 _logs:
@@ -34,11 +34,11 @@ _test:
 	@echo "\nPods:"
 	@kubectl get pods --all-namespaces || true
 
-test: _preflight _down _up _test
+test: _preflight down up _test
 	@echo "\nTests completed."
 	@echo "\nCollecting logs..."
 	@$(MAKE) _export
 	@echo "Logs collected in tests/logs.out"
 	@echo "\nTearing down test environment..."
-	@$(MAKE) _down
+	@$(MAKE) down
 	@echo "Test environment torn down."
