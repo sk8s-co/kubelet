@@ -18,7 +18,7 @@ up:
 down:
 	@docker compose -f tests/docker-compose.yml down --volumes --remove-orphans
 
-_logs:
+logs:
 	@docker compose -f tests/docker-compose.yml logs -f
 
 _export:

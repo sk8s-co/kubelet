@@ -2,11 +2,11 @@ services:
   certs:
     image: alpine/openssl:latest
     volumes:
-      - data:/data
+      - certs:/certs
     command: >
       req -x509 -newkey rsa:4096 -nodes 
-        -keyout /data/localhost.key 
-        -out /data/localhost.crt 
+        -keyout /certs/localhost.key 
+        -out /certs/localhost.crt 
         -days 365 
         -subj '/CN=localhost' 
         -addext 'subjectAltName=IP:127.0.0.1,DNS:localhost,DNS:host.docker.internal,DNS:etcd,DNS:kube-apiserver'
@@ -16,8 +16,9 @@ services:
     image: bitnami/kubectl:latest
     user: root
     volumes:
-      - data:/data
-      - .:/work
+      - certs:/certs:ro
+      - config:/config
+      - .:/tests
     depends_on:
       certs:
         condition: service_completed_successfully
@@ -27,17 +28,17 @@ services:
       - -c
       - |
         # local-cluster for inside docker
-        kubectl config set-cluster local-cluster --server=https://kube-apiserver:6443 --certificate-authority=/data/localhost.crt --kubeconfig=/data/kubeconfig &&
-        kubectl config set-credentials default-user --client-certificate=/data/localhost.crt --client-key=/data/localhost.key --kubeconfig=/data/kubeconfig &&
-        kubectl config set-context default-context --cluster=local-cluster --user=default-user --kubeconfig=/data/kubeconfig &&
-        kubectl config use-context default-context --kubeconfig=/data/kubeconfig &&
+        kubectl config set-cluster internal --server=https://kube-apiserver:6443 --certificate-authority=/certs/localhost.crt --kubeconfig=/config/kubeconfig --embed-certs=true &&
+        kubectl config set-credentials internal --client-certificate=/certs/localhost.crt --client-key=/certs/localhost.key --kubeconfig=/config/kubeconfig --embed-certs=true &&
+        kubectl config set-context internal --cluster=internal --user=internal --kubeconfig=/config/kubeconfig &&
+        kubectl config use-context internal --kubeconfig=/config/kubeconfig &&
         # host-cluster for access from host machine
-        rm -f /work/kubeconfig && \
-        kubectl config set-cluster localhost --server=https://localhost:65443 --certificate-authority=/data/localhost.crt --kubeconfig=/work/kubeconfig --embed-certs=true
-        kubectl config set-credentials default-user --client-certificate=/data/localhost.crt --client-key=/data/localhost.key --kubeconfig=/work/kubeconfig --embed-certs=true &&
-        kubectl config set-context default-context --cluster=localhost --user=default-user --kubeconfig=/work/kubeconfig &&
-        kubectl config use-context default-context --kubeconfig=/work/kubeconfig
-        chmod ugo+r /work/kubeconfig
+        rm -f /tests/kubeconfig && \
+        kubectl config set-cluster sk8s --server=https://localhost:65443 --certificate-authority=/certs/localhost.crt --kubeconfig=/tests/kubeconfig --embed-certs=true
+        kubectl config set-credentials sk8s --client-certificate=/certs/localhost.crt --client-key=/certs/localhost.key --kubeconfig=/tests/kubeconfig --embed-certs=true &&
+        kubectl config set-context sk8s --cluster=sk8s --user=sk8s --kubeconfig=/tests/kubeconfig &&
+        kubectl config use-context sk8s --kubeconfig=/tests/kubeconfig
+        chmod ugo+r /tests/kubeconfig
     restart: no
 
   etcd:
@@ -45,7 +46,7 @@ services:
     tmpfs:
       - /etcd
     volumes:
-      - data:/data
+      - certs:/certs
     depends_on:
       certs:
         condition: service_completed_successfully
@@ -53,14 +54,14 @@ services:
       /usr/local/bin/etcd
       --name=etcd0
       --data-dir=/etcd
-      --cert-file=/data/localhost.crt
-      --key-file=/data/localhost.key
-      --client-cert-file=/data/localhost.crt
-      --client-key-file=/data/localhost.key
-      --trusted-ca-file=/data/localhost.crt
-      --peer-cert-file=/data/localhost.crt
-      --peer-key-file=/data/localhost.key
-      --peer-trusted-ca-file=/data/localhost.crt
+      --cert-file=/certs/localhost.crt
+      --key-file=/certs/localhost.key
+      --client-cert-file=/certs/localhost.crt
+      --client-key-file=/certs/localhost.key
+      --trusted-ca-file=/certs/localhost.crt
+      --peer-cert-file=/certs/localhost.crt
+      --peer-key-file=/certs/localhost.key
+      --peer-trusted-ca-file=/certs/localhost.crt
       --peer-client-cert-auth=true
       --client-cert-auth=true
       --listen-client-urls=https://0.0.0.0:2379
@@ -74,9 +75,9 @@ services:
       test: ["CMD", 
         "etcdctl", 
         "--endpoints=https://etcd:2379", 
-        "--cert=/data/localhost.crt",
-        "--key=/data/localhost.key",
-        "--cacert=/data/localhost.crt",
+        "--cert=/certs/localhost.crt",
+        "--key=/certs/localhost.key",
+        "--cacert=/certs/localhost.crt",
         "endpoint", "health"
       ]
       interval: 1s
@@ -92,28 +93,27 @@ services:
     ports:
       - "65443:6443"
     volumes:
-      - data:/data
+      - certs:/certs
     command:
       - /usr/local/bin/kube-apiserver
       - --advertise-address=0.0.0.0
       - --etcd-servers=https://etcd:2379
-      - --etcd-keyfile=/data/localhost.key
-      - --etcd-certfile=/data/localhost.crt
-      - --etcd-cafile=/data/localhost.crt
-      - --tls-cert-file=/data/localhost.crt
-      - --tls-private-key-file=/data/localhost.key
-      - --client-ca-file=/data/localhost.crt
-      - --service-account-key-file=/data/localhost.crt
-      - --service-account-signing-key-file=/data/localhost.key
+      - --etcd-keyfile=/certs/localhost.key
+      - --etcd-certfile=/certs/localhost.crt
+      - --etcd-cafile=/certs/localhost.crt
+      - --tls-cert-file=/certs/localhost.crt
+      - --tls-private-key-file=/certs/localhost.key
+      - --client-ca-file=/certs/localhost.crt
+      - --service-account-key-file=/certs/localhost.crt
+      - --service-account-signing-key-file=/certs/localhost.key
       - --service-account-issuer=https://kubernetes.default.svc.cluster.local
       - --allow-privileged=true
       - --endpoint-reconciler-type=none # TODO: research
       - --feature-gates=APIServerIdentity=false # TODO: research
       - --authorization-mode=AlwaysAllow # TODO: fix
       - --service-cluster-ip-range=10.96.0.0/16 # TODO: research
-      - --kubelet-client-certificate=/data/localhost.crt
-      - --kubelet-client-key=/data/localhost.key
-      - --v=3
+      - --kubelet-client-certificate=/certs/localhost.crt
+      - --kubelet-client-key=/certs/localhost.key
 
   kube-controller-manager:
     image: registry.k8s.io/kube-controller-manager:${KUBE_VERSION:-v1.33.4}
@@ -121,14 +121,15 @@ services:
       kubeconfig:
         condition: service_completed_successfully
     volumes:
-      - data:/data
+      - certs:/certs
+      - config:/config
     command:
       - /usr/local/bin/kube-controller-manager
-      - --kubeconfig=/data/kubeconfig
-      - --service-account-private-key-file=/data/localhost.key
-      - --root-ca-file=/data/localhost.crt
-      - --cluster-signing-cert-file=/data/localhost.crt
-      - --cluster-signing-key-file=/data/localhost.key
+      - --kubeconfig=/config/kubeconfig
+      - --service-account-private-key-file=/certs/localhost.key
+      - --root-ca-file=/certs/localhost.crt
+      - --cluster-signing-cert-file=/certs/localhost.crt
+      - --cluster-signing-key-file=/certs/localhost.key
       - --leader-elect=false
       - --cluster-cidr=10.244.0.0/16 # TODO: research
 
@@ -138,10 +139,11 @@ services:
       kubeconfig:
         condition: service_completed_successfully
     volumes:
-      - data:/data
+      - certs:/certs
+      - config:/config
     command:
       - /usr/local/bin/kube-scheduler
-      - --kubeconfig=/data/kubeconfig
+      - --kubeconfig=/config/kubeconfig
       - --leader-elect=false
 
   kubelet:
@@ -153,8 +155,6 @@ services:
     depends_on:
       kubeconfig:
         condition: service_completed_successfully
-    environment:
-      - KUBECONFIG=/data/kubeconfig
     privileged: true
     pid: host
     security_opt:
@@ -164,6 +164,8 @@ services:
       - /run
       - /var/run
     volumes:
+      - config:/config
+      - certs:/certs
       - data:/data
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
     healthcheck:
@@ -174,4 +176,6 @@ services:
       start_period: 1s
 
 volumes:
+  certs: {}
+  config: {}
   data: {}

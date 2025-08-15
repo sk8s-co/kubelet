@@ -1,35 +1,27 @@
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
 
-# TLS configuration
-tlsCertFile: /data/localhost.crt
-tlsPrivateKeyFile: /data/localhost.key
-tlsCACertFile: /data/localhost.crt
+tlsCertFile: /certs/localhost.crt
+tlsPrivateKeyFile: /certs/localhost.key
 
-# Container runtime configuration
 containerRuntimeEndpoint: unix:///var/run/crio/crio.sock
 
-# Swap configuration
 failSwapOn: false
 
-# Cgroup configuration
 cgroupsPerQOS: false
 enforceNodeAllocatable: []
 
-# Server certificate verification
 serverTLSBootstrap: false
 
-# Authentication configuration
 authentication:
   anonymous:
     enabled: false
   webhook:
     enabled: false
   x509:
-    clientCAFile: /data/localhost.crt
+    clientCAFile: /certs/localhost.crt
 authorization:
   mode: AlwaysAllow
 
-# Node status and heartbeat configuration
 nodeStatusUpdateFrequency: 10s
 nodeStatusReportFrequency: 10s
