@@ -28,7 +28,7 @@ jobs:
         with:
           kubectlVersion: ${{ matrix.KUBE_VERSION }}
           enablePlugins: true
-          plugins: krew
+          plugins: kuttl
       - name: Run Tests
         run: |
           make KUBE_VERSION=${{ matrix.KUBE_VERSION }} GO_VERSION_KUBE=${{ matrix.GO_VERSION_KUBE }}
