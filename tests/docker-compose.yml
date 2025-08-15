@@ -33,7 +33,7 @@ services:
         kubectl config use-context default-context --kubeconfig=/data/kubeconfig &&
         # host-cluster for access from host machine
         rm -f /work/kubeconfig && \
-        kubectl config set-cluster localhost --server=https://localhost:6443 --certificate-authority=/data/localhost.crt --kubeconfig=/work/kubeconfig --embed-certs=true
+        kubectl config set-cluster localhost --server=https://localhost:65443 --certificate-authority=/data/localhost.crt --kubeconfig=/work/kubeconfig --embed-certs=true
         kubectl config set-credentials default-user --client-certificate=/data/localhost.crt --client-key=/data/localhost.key --kubeconfig=/work/kubeconfig --embed-certs=true &&
         kubectl config set-context default-context --cluster=localhost --user=default-user --kubeconfig=/work/kubeconfig &&
         kubectl config use-context default-context --kubeconfig=/work/kubeconfig
@@ -90,7 +90,7 @@ services:
       kubeconfig:
         condition: service_completed_successfully
     ports:
-      - "6443:6443"
+      - "65443:6443"
     volumes:
       - data:/data
     command:
