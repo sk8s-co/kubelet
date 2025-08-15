@@ -1,0 +1,7 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestSuite
+metadata:
+  name: kubelet-tests
+testDirs:
+- hello-world
+timeout: 120

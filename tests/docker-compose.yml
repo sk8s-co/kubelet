@@ -13,10 +13,11 @@ services:
     restart: no
 
   kubeconfig:
-    image: bitnami/kubectl:1.33.4
+    image: bitnami/kubectl:latest
     user: root
     volumes:
       - data:/data
+      - .:/work
     depends_on:
       certs:
         condition: service_completed_successfully
@@ -25,10 +26,17 @@ services:
       - /bin/bash
       - -c
       - |
+        # local-cluster for inside docker
         kubectl config set-cluster local-cluster --server=https://kube-apiserver:6443 --certificate-authority=/data/localhost.crt --kubeconfig=/data/kubeconfig &&
         kubectl config set-credentials default-user --client-certificate=/data/localhost.crt --client-key=/data/localhost.key --kubeconfig=/data/kubeconfig &&
         kubectl config set-context default-context --cluster=local-cluster --user=default-user --kubeconfig=/data/kubeconfig &&
-        kubectl config use-context default-context --kubeconfig=/data/kubeconfig
+        kubectl config use-context default-context --kubeconfig=/data/kubeconfig &&
+        # host-cluster for access from host machine
+        rm -f /work/kubeconfig && \
+        kubectl config set-cluster localhost --server=https://localhost:6443 --certificate-authority=/data/localhost.crt --kubeconfig=/work/kubeconfig --embed-certs=true
+        kubectl config set-credentials default-user --client-certificate=/data/localhost.crt --client-key=/data/localhost.key --kubeconfig=/work/kubeconfig --embed-certs=true &&
+        kubectl config set-context default-context --cluster=localhost --user=default-user --kubeconfig=/work/kubeconfig &&
+        kubectl config use-context default-context --kubeconfig=/work/kubeconfig
     restart: no
 
   etcd:
@@ -71,15 +79,17 @@ services:
         "endpoint", "health"
       ]
       interval: 1s
-      timeout: 3s
+      timeout: 1s
       retries: 5
       start_period: 1s
 
   kube-apiserver:
-    image: registry.k8s.io/kube-apiserver:v1.33.4
+    image: registry.k8s.io/kube-apiserver:${KUBE_VERSION:-v1.33.4}
     depends_on:
       kubeconfig:
         condition: service_completed_successfully
+    ports:
+      - "6443:6443"
     volumes:
       - data:/data
     command:
@@ -96,16 +106,16 @@ services:
       - --service-account-signing-key-file=/data/localhost.key
       - --service-account-issuer=https://kubernetes.default.svc.cluster.local
       - --allow-privileged=true
-      - --endpoint-reconciler-type=none
-      - --feature-gates=APIServerIdentity=false
-      - --authorization-mode=AlwaysAllow
-      - --service-cluster-ip-range=10.96.0.0/16
+      - --endpoint-reconciler-type=none # TODO: research
+      - --feature-gates=APIServerIdentity=false # TODO: research
+      - --authorization-mode=AlwaysAllow # TODO: fix
+      - --service-cluster-ip-range=10.96.0.0/16 # TODO: research
       - --kubelet-client-certificate=/data/localhost.crt
       - --kubelet-client-key=/data/localhost.key
       - --v=3
 
   kube-controller-manager:
-    image: registry.k8s.io/kube-controller-manager:v1.33.4
+    image: registry.k8s.io/kube-controller-manager:${KUBE_VERSION:-v1.33.4}
     depends_on:
       kubeconfig:
         condition: service_completed_successfully
@@ -119,10 +129,10 @@ services:
       - --cluster-signing-cert-file=/data/localhost.crt
       - --cluster-signing-key-file=/data/localhost.key
       - --leader-elect=false
-      - --cluster-cidr=10.244.0.0/16
+      - --cluster-cidr=10.244.0.0/16 # TODO: research
 
   kube-scheduler:
-    image: registry.k8s.io/kube-scheduler:v1.33.4
+    image: registry.k8s.io/kube-scheduler:${KUBE_VERSION:-v1.33.4}
     depends_on:
       kubeconfig:
         condition: service_completed_successfully
@@ -135,7 +145,10 @@ services:
 
   kubelet:
     build:
-      context: .
+      context: ..
+      args:
+        - KUBE_VERSION=${KUBE_VERSION:-v1.33.4}
+        - GO_VERSION=${GO_VERSION_KUBE:-1.24}
     depends_on:
       kubeconfig:
         condition: service_completed_successfully
@@ -152,6 +165,12 @@ services:
     volumes:
       - data:/data
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:10248/healthz"]
+      interval: 1s
+      timeout: 1s
+      retries: 5
+      start_period: 1s
 
 volumes:
   data: {}

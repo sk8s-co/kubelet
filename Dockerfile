@@ -103,7 +103,7 @@ RUN --mount=type=cache,target=/go-${GO_VERSION_KUBE} \
 
 FROM alpine:latest
 
-RUN apk add --no-cache iptables
+RUN apk add --no-cache iptables curl
 COPY --from=builder-cni /cni/bin/ /opt/cni/bin/
 COPY --from=builder-crio /cri-o/bin/crio /usr/bin/crio
 COPY --from=builder-crio /cri-o/bin/pinns /usr/bin/pinns
@@ -113,9 +113,11 @@ COPY --from=builder-kubelet /usr/bin/kubelet /usr/bin/kubelet
 COPY --from=kubectl /bin/kubectl /usr/bin/kubectl
 COPY --from=forego /usr/local/bin/forego /usr/bin/forego
 
+WORKDIR /var/task
+
 COPY etc /etc
 COPY var /var
+COPY Procfile /var/task/Procfile
 
-WORKDIR /var/task
 ENTRYPOINT [ "/usr/bin/forego" ]
 CMD [ "start", "-r", "-f", "/var/task/Procfile" ]
