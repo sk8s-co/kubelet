@@ -24,10 +24,10 @@ jobs:
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - name: Setup kubectl
-        uses: marcofranssen/setup-kubectl@v0.3.0
+        uses: marcofranssen/setup-kubectl@v1.3.0
         with:
           kubectlVersion: ${{ matrix.KUBE_VERSION }}
-          enblePlugins: true
+          enablePlugins: true
           plugins: krew
       - name: Run Tests
         run: |
