@@ -8,8 +8,11 @@ containerRuntimeEndpoint: unix:///var/run/crio/crio.sock
 
 failSwapOn: false
 
+cgroupDriver: cgroupfs
+cgroupRoot: /
+kubeletCgroups: /kubelet
+systemCgroups: /system
 cgroupsPerQOS: false
-cgroupRoot: /sys/fs/cgroup/
 enforceNodeAllocatable: []
 
 serverTLSBootstrap: false
