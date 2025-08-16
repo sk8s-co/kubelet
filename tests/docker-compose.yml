@@ -158,9 +158,11 @@ services:
     privileged: true
     pid: host
     network_mode: host
-    security_opt:
-      - apparmor=unconfined
-      - seccomp=unconfined
+    # cap_add:
+    #   - SYS_ADMIN
+    # security_opt:
+    #   - apparmor=unconfined
+    #   - seccomp=unconfined
     tmpfs:
       - /run
       - /var/run
