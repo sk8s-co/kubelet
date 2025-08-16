@@ -9,6 +9,7 @@ containerRuntimeEndpoint: unix:///var/run/crio/crio.sock
 failSwapOn: false
 
 cgroupsPerQOS: false
+cgroupRoot: /sys/fs/cgroup/
 enforceNodeAllocatable: []
 
 serverTLSBootstrap: false
