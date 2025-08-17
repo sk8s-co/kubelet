@@ -103,7 +103,7 @@ RUN --mount=type=cache,target=/go-${GO_VERSION_KUBE} \
 
 FROM alpine:latest
 
-RUN apk add --no-cache iptables curl
+RUN apk add --no-cache iptables curl jq
 COPY --from=builder-cni /cni/bin/ /opt/cni/bin/
 COPY --from=builder-crio /cri-o/bin/crio /usr/bin/crio
 COPY --from=builder-crio /cri-o/bin/pinns /usr/bin/pinns

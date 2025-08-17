@@ -168,7 +168,6 @@ services:
     networks:
       - apiserver
       - kubelet
-    pid: host
     tmpfs:
       - /run
       - /var/run

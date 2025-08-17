@@ -1,0 +1,20 @@
+#!/bin/sh
+set -euo pipefail
+
+# TODO Turn this into a proper controller
+export KUBECONFIG=/config/kubeconfig
+
+sleep 1
+echo "Waiting for kubelet to report healthy..."
+curl -sf http://localhost:10248/healthz >/dev/null 2>&1
+echo "Kubelet is healthy."
+
+NODE_SUMMARY=$(curl -sf --cacert /certs/localhost.crt --cert /certs/localhost.crt --key /certs/localhost.key https://localhost:10250/stats/summary)
+NODE_NAME=$(echo "$NODE_SUMMARY" | jq -r '.node.nodeName')
+echo "Kubelet node name: $NODE_NAME"
+
+kubectl taint nodes "$NODE_NAME" node.cloudprovider.kubernetes.io/uninitialized:NoSchedule-
+echo "Removed cloud provider taint from node $NODE_NAME"
+
+# TODO: Await change
+sleep infinity
