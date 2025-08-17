@@ -158,11 +158,6 @@ services:
     privileged: true
     pid: host
     network_mode: host
-    # cap_add:
-    #   - SYS_ADMIN
-    # security_opt:
-    #   - apparmor=unconfined
-    #   - seccomp=unconfined
     tmpfs:
       - /run
       - /var/run
@@ -186,5 +181,4 @@ volumes:
     driver_opts:
       type: cgroup2
       device: cgroup2
-      # o: rw,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot
       o: rw,nosuid,nodev,noexec,relatime
