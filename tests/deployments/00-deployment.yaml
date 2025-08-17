@@ -15,6 +15,7 @@ spec:
         app: hello-world
     spec:
       containers:
-      - name: hello-world
-        image: busybox:1.35
-        command: ["sh", "-c", "while true; do echo 'hello world'; sleep 5; done"]
+        - name: hello-world
+          image: busybox:1.35
+          command:
+            ["sh", "-c", "while true; do echo 'hello world'; sleep 5; done"]

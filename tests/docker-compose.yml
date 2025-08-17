@@ -45,6 +45,8 @@ services:
     image: gcr.io/etcd-development/etcd:v3.5.15
     tmpfs:
       - /etcd
+    networks:
+      - etcd
     volumes:
       - certs:/certs
     depends_on:
@@ -90,6 +92,9 @@ services:
     depends_on:
       kubeconfig:
         condition: service_completed_successfully
+    networks:
+      - apiserver
+      - etcd
     ports:
       - "65443:6443"
     volumes:
@@ -120,6 +125,8 @@ services:
     depends_on:
       kubeconfig:
         condition: service_completed_successfully
+    networks:
+      - apiserver
     volumes:
       - certs:/certs
       - config:/config
@@ -138,6 +145,8 @@ services:
     depends_on:
       kubeconfig:
         condition: service_completed_successfully
+    networks:
+      - apiserver
     volumes:
       - certs:/certs
       - config:/config
@@ -156,13 +165,15 @@ services:
       kubeconfig:
         condition: service_completed_successfully
     privileged: true
+    networks:
+      - apiserver
+      - kubelet
     pid: host
-    network_mode: host
     tmpfs:
       - /run
       - /var/run
     volumes:
-      - .:/config
+      - config:/config
       - certs:/certs
       - data:/data
       - cgroup:/sys/fs/cgroup:rw
@@ -172,6 +183,16 @@ services:
       timeout: 1s
       retries: 5
       start_period: 1s
+    deploy:
+      replicas: 2
+
+networks:
+  etcd:
+    driver: bridge
+  apiserver:
+    driver: bridge
+  kubelet:
+    driver: bridge
 
 volumes:
   certs: {}
