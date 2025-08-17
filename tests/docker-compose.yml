@@ -170,7 +170,7 @@ services:
       - .:/config
       - certs:/certs
       - data:/data
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      - cgroup:/sys/fs/cgroup:rw
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:10248/healthz"]
       interval: 1s
@@ -182,3 +182,9 @@ volumes:
   certs: {}
   config: {}
   data: {}
+  cgroup: 
+    driver_opts:
+      type: cgroup2
+      device: cgroup2
+      # o: rw,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot
+      o: rw,nosuid,nodev,noexec,relatime

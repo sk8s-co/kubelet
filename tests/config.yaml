@@ -3,5 +3,6 @@ kind: TestSuite
 metadata:
   name: kubelet-tests
 testDirs:
-- hello-world
+  - jobs
+  - deployments
 timeout: 120

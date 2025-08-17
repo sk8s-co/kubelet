@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-world-deployment
+status:
+  readyReplicas: 2
+  replicas: 2
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  labels:
+    app: hello-world
+  ownerReferences:
+  - apiVersion: apps/v1
+    kind: Deployment
+    name: hello-world-deployment
+status:
+  readyReplicas: 2
+  replicas: 2
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: hello-world
+status:
+  phase: Running
