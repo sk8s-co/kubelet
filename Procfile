@@ -1,3 +1,3 @@
-crio: /usr/bin/crio
-controller: /var/lib/kubelet/controller
-kubelet: /usr/bin/kubelet --kubeconfig=/config/kubeconfig --config /var/lib/kubelet/config.yaml --cloud-provider external
+crio!: /usr/bin/crio
+kubelet!: /usr/bin/kubelet --kubeconfig=/config/kubeconfig --config /var/lib/kubelet/config.yaml --cloud-provider external
+init?: /var/lib/kubelet/init

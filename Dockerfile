@@ -1,6 +1,9 @@
 ARG GO_VERSION_KUBE=1.24
 ARG KUBE_VERSION=v1.33.4
 
+ARG GO_VERSION_CRITOOLS=1.25
+ARG CRITOOLS_VERSION=v1.33.0
+
 ARG GO_VERSION_CNI=1.23
 ARG CNI_VERSION=v1.7.1
 
@@ -13,8 +16,8 @@ ARG CONMON_VERSION=v2.1.13
 ARG GO_VERSION_RUNC=1.23
 ARG RUNC_VERSION=v1.3.0
 
-ARG FOREGO_VERSION=0.18
-FROM nginxproxy/forego:${FOREGO_VERSION} AS forego
+ARG PROCFILED_VERSION=beta
+FROM ghcr.io/scaffoldly/procfiled:${PROCFILED_VERSION} AS procfiled
 FROM registry.k8s.io/kubectl:${KUBE_VERSION} AS kubectl
 
 FROM golang:${GO_VERSION_CNI}-alpine AS builder-cni
@@ -44,6 +47,24 @@ RUN --mount=type=cache,target=/go-${GO_VERSION_CRIO} \
     git clone https://github.com/cri-o/cri-o.git -b ${CRIO_VERSION} --depth=1 /cri-o && \
     cd /cri-o && \
     CGO_ENABLED=0 make binaries
+
+FROM golang:${GO_VERSION_CRITOOLS}-alpine AS builder-critools
+
+ARG CRITOOLS_VERSION
+ARG GO_VERSION_CRITOOLS
+RUN apk add --no-cache \
+    git \
+    make \
+    gcc \
+    musl-dev \
+    gpgme-dev \
+    pkgconfig \
+    bash \
+    btrfs-progs-dev
+RUN --mount=type=cache,target=/go-${GO_VERSION_CRITOOLS} \
+    git clone https://github.com/kubernetes-sigs/cri-tools.git -b ${CRITOOLS_VERSION} --depth=1 /cri-tools && \
+    cd /cri-tools && \
+    CGO_ENABLED=0 make binaries BUILD_PATH=/cri-tools GOOS="" GOARCH=""
 
 FROM golang:${GO_VERSION_CONMON}-alpine AS builder-conmon
 
@@ -106,12 +127,13 @@ FROM alpine:latest
 RUN apk add --no-cache iptables curl jq
 COPY --from=builder-cni /cni/bin/ /opt/cni/bin/
 COPY --from=builder-crio /cri-o/bin/crio /usr/bin/crio
+COPY --from=builder-critools /cri-tools/bin/crictl /usr/bin/crictl
 COPY --from=builder-crio /cri-o/bin/pinns /usr/bin/pinns
 COPY --from=builder-conmon /conmon/bin/conmon /usr/bin/conmon
 COPY --from=builder-runc /runc/runc /usr/bin/runc
 COPY --from=builder-kubelet /usr/bin/kubelet /usr/bin/kubelet
 COPY --from=kubectl /bin/kubectl /usr/bin/kubectl
-COPY --from=forego /usr/local/bin/forego /usr/bin/forego
+COPY --from=procfiled /usr/local/bin/procfiled /usr/bin/procfiled
 
 WORKDIR /var/task
 
@@ -119,5 +141,5 @@ COPY etc /etc
 COPY var /var
 COPY Procfile /var/task/Procfile
 
-ENTRYPOINT [ "/usr/bin/forego" ]
-CMD [ "start", "-r", "-f", "/var/task/Procfile" ]
+ENTRYPOINT [ "/usr/bin/procfiled" ]
+CMD [ "start", "-j", "/var/task/Procfile" ]

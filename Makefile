@@ -13,9 +13,12 @@ _preflight:
 
 up:
 	@KUBE_VERSION=$(KUBE_VERSION) GO_VERSION_KUBE=$(GO_VERSION_KUBE) \
-	docker compose -f tests/docker-compose.yml up --build --force-recreate --remove-orphans -d
+	docker compose -f tests/docker-compose.yml up --build --pull always --force-recreate --remove-orphans -d
 
 down:
+	@docker compose -f tests/docker-compose.yml down --remove-orphans
+
+clean:
 	@docker compose -f tests/docker-compose.yml down --volumes --remove-orphans
 
 logs:

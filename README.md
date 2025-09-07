@@ -2,12 +2,12 @@
 
 A fully self-contained Kubelet that can run in Docker with all the necessary dependencies:
 
-- [`cni` plugins](https://github.com/containernetworking/plugins)
+- [`cni`](https://github.com/containernetworking/plugins)
 - [`cri-o`](https://github.com/cri-o/cri-o)
 - [`conmon`](https://github.com/containers/conmon)
 - [`runc`](https://github.com/opencontainers/runc)
 - [`kubelet`](https://github.com/kubernetes/kubernetes)
-- [`forego`](https://github.com/ddollar/forego)
+- [`procfiled`](https://github.com/scaffoldly/procfiled)
   - Launches the [Procfile](./Procfile)
 
 ## Running

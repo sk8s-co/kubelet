@@ -24,5 +24,5 @@ authentication:
 authorization:
   mode: AlwaysAllow
 
-nodeStatusUpdateFrequency: 10s
-nodeStatusReportFrequency: 10s
+nodeStatusUpdateFrequency: 5s
+nodeStatusReportFrequency: 5s

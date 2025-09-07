@@ -1,3 +1,31 @@
+x-kubelet: &kubelet
+  build:
+    context: ..
+    args:
+      - KUBE_VERSION=${KUBE_VERSION:-v1.33.4}
+      - GO_VERSION=${GO_VERSION_KUBE:-1.24}
+  depends_on:
+    kubeconfig:
+      condition: service_completed_successfully
+  privileged: true
+  networks:
+    - apiserver
+    - kubelet
+  tmpfs:
+    - /run
+    - /var/run
+  volumes:
+    - config:/config
+    - certs:/certs
+    - data:/data
+    - cgroup:/sys/fs/cgroup:rw
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:10248/healthz"]
+    interval: 1s
+    timeout: 1s
+    retries: 5
+    start_period: 1s
+
 services:
   certs:
     image: alpine/openssl:latest
@@ -42,37 +70,29 @@ services:
     restart: no
 
   etcd:
-    image: gcr.io/etcd-development/etcd:v3.5.15
+    image: ${ETCD_IMAGE:-gcr.io/etcd-development/etcd}:${ETCD_VERSION:-v3.5.15}
     tmpfs:
       - /etcd
     networks:
       - etcd
     volumes:
       - certs:/certs
+      - data:/data
     depends_on:
       certs:
         condition: service_completed_successfully
     command: >
       /usr/local/bin/etcd
       --name=etcd0
-      --data-dir=/etcd
+      --data-dir=/data/etcd
       --cert-file=/certs/localhost.crt
       --key-file=/certs/localhost.key
       --client-cert-file=/certs/localhost.crt
       --client-key-file=/certs/localhost.key
       --trusted-ca-file=/certs/localhost.crt
-      --peer-cert-file=/certs/localhost.crt
-      --peer-key-file=/certs/localhost.key
-      --peer-trusted-ca-file=/certs/localhost.crt
-      --peer-client-cert-auth=true
       --client-cert-auth=true
       --listen-client-urls=https://0.0.0.0:2379
       --advertise-client-urls=https://etcd:2379
-      --listen-peer-urls=https://0.0.0.0:2380
-      --initial-advertise-peer-urls=https://etcd:2380
-      --initial-cluster=etcd0=https://etcd:2380
-      --initial-cluster-token=etcd-cluster-1
-      --initial-cluster-state=new
     healthcheck:
       test: ["CMD", 
         "etcdctl", 
@@ -119,6 +139,8 @@ services:
       - --service-cluster-ip-range=10.96.0.0/16 # TODO: research
       - --kubelet-client-certificate=/certs/localhost.crt
       - --kubelet-client-key=/certs/localhost.key
+      - --default-not-ready-toleration-seconds=10
+      - --default-unreachable-toleration-seconds=10
 
   kube-controller-manager:
     image: registry.k8s.io/kube-controller-manager:${KUBE_VERSION:-v1.33.4}
@@ -137,8 +159,12 @@ services:
       - --root-ca-file=/certs/localhost.crt
       - --cluster-signing-cert-file=/certs/localhost.crt
       - --cluster-signing-key-file=/certs/localhost.key
-      - --leader-elect=false
       - --cluster-cidr=10.244.0.0/16 # TODO: research
+      - --leader-elect=false
+      - --node-monitor-period=2s
+      - --node-monitor-grace-period=15s
+      - --node-eviction-rate=10
+      - --secondary-node-eviction-rate=10
 
   kube-scheduler:
     image: registry.k8s.io/kube-scheduler:${KUBE_VERSION:-v1.33.4}
@@ -155,35 +181,13 @@ services:
       - --kubeconfig=/config/kubeconfig
       - --leader-elect=false
 
-  kubelet:
-    build:
-      context: ..
-      args:
-        - KUBE_VERSION=${KUBE_VERSION:-v1.33.4}
-        - GO_VERSION=${GO_VERSION_KUBE:-1.24}
-    depends_on:
-      kubeconfig:
-        condition: service_completed_successfully
-    privileged: true
-    networks:
-      - apiserver
-      - kubelet
-    tmpfs:
-      - /run
-      - /var/run
-    volumes:
-      - config:/config
-      - certs:/certs
-      - data:/data
-      - cgroup:/sys/fs/cgroup:rw
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:10248/healthz"]
-      interval: 1s
-      timeout: 1s
-      retries: 5
-      start_period: 1s
-    deploy:
-      replicas: 2
+  kubelet-1:
+    <<: *kubelet
+    hostname: kubelet-1
+
+  kubelet-2:
+    <<: *kubelet
+    hostname: kubelet-2
 
 networks:
   etcd:
