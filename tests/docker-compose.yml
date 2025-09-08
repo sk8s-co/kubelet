@@ -5,6 +5,8 @@ x-kubelet: &kubelet
       - KUBE_VERSION=${KUBE_VERSION:-v1.33.4}
       - GO_VERSION=${GO_VERSION_KUBE:-1.24}
   depends_on:
+    etcd:
+      condition: service_healthy
     kubeconfig:
       condition: service_completed_successfully
   privileged: true
@@ -69,8 +71,25 @@ services:
         chmod ugo+r /tests/kubeconfig
     restart: no
 
+  ddb:
+    image: amazon/dynamodb-local:2.6.1
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /data"
+    user: root
+    networks:
+      - etcd
+    ports:
+      - "8000:8000"
+    volumes:
+      - data:/data
+
   etcd:
-    image: ${ETCD_IMAGE:-gcr.io/etcd-development/etcd}:${ETCD_VERSION:-v3.5.15}
+    image: ${ETCD_IMAGE:-gcr.io/etcd-development/etcd}:${ETCD_VERSION:-v3.6.4}
+    environment:
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=DUMMYIDEXAMPLE
+      - AWS_SECRET_ACCESS_KEY=DUMMYEXAMPLEKEY
+      - AWS_ENDPOINT_URL_DYNAMODB=http://ddb:8000
+      - AWS_ENDPOINT_URL_DYNAMODB_STREAMS=http://ddb:8000
     tmpfs:
       - /etcd
     networks:
@@ -103,13 +122,15 @@ services:
         "endpoint", "health"
       ]
       interval: 1s
-      timeout: 1s
+      timeout: 5s
       retries: 5
       start_period: 1s
 
   kube-apiserver:
     image: registry.k8s.io/kube-apiserver:${KUBE_VERSION:-v1.33.4}
     depends_on:
+      etcd:
+        condition: service_healthy
       kubeconfig:
         condition: service_completed_successfully
     networks:
@@ -122,6 +143,7 @@ services:
     command:
       - /usr/local/bin/kube-apiserver
       - --advertise-address=0.0.0.0
+      - --disable-http2-serving
       - --etcd-servers=https://etcd:2379
       - --etcd-keyfile=/certs/localhost.key
       - --etcd-certfile=/certs/localhost.crt
@@ -145,6 +167,8 @@ services:
   kube-controller-manager:
     image: registry.k8s.io/kube-controller-manager:${KUBE_VERSION:-v1.33.4}
     depends_on:
+      etcd:
+        condition: service_healthy
       kubeconfig:
         condition: service_completed_successfully
     networks:
@@ -169,6 +193,8 @@ services:
   kube-scheduler:
     image: registry.k8s.io/kube-scheduler:${KUBE_VERSION:-v1.33.4}
     depends_on:
+      etcd:
+        condition: service_healthy
       kubeconfig:
         condition: service_completed_successfully
     networks:
@@ -181,13 +207,13 @@ services:
       - --kubeconfig=/config/kubeconfig
       - --leader-elect=false
 
-  kubelet-1:
+  kubelet:
     <<: *kubelet
-    hostname: kubelet-1
+    hostname: kubelet
 
-  kubelet-2:
-    <<: *kubelet
-    hostname: kubelet-2
+# kubelet-2:
+#   <<: *kubelet
+#   hostname: kubelet-2
 
 networks:
   etcd:
@@ -198,9 +224,9 @@ networks:
     driver: bridge
 
 volumes:
+  data: {}
   certs: {}
   config: {}
-  data: {}
   cgroup: 
     driver_opts:
       type: cgroup2
