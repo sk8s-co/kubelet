@@ -90,6 +90,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=DUMMYEXAMPLEKEY
       - AWS_ENDPOINT_URL_DYNAMODB=http://ddb:8000
       - AWS_ENDPOINT_URL_DYNAMODB_STREAMS=http://ddb:8000
+      - SETCD_VERBOSE=true
     tmpfs:
       - /etcd
     networks:
@@ -163,7 +164,7 @@ services:
       - --kubelet-client-key=/certs/localhost.key
       - --default-not-ready-toleration-seconds=10
       - --default-unreachable-toleration-seconds=10
-
+      - --v=4
   kube-controller-manager:
     image: registry.k8s.io/kube-controller-manager:${KUBE_VERSION:-v1.33.4}
     depends_on:
@@ -189,7 +190,7 @@ services:
       - --node-monitor-grace-period=15s
       - --node-eviction-rate=10
       - --secondary-node-eviction-rate=10
-
+      - --v=4
   kube-scheduler:
     image: registry.k8s.io/kube-scheduler:${KUBE_VERSION:-v1.33.4}
     depends_on:
@@ -206,6 +207,7 @@ services:
       - /usr/local/bin/kube-scheduler
       - --kubeconfig=/config/kubeconfig
       - --leader-elect=false
+      - --v=4
 
   kubelet:
     <<: *kubelet

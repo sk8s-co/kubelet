@@ -10,6 +10,7 @@ SETCD_IMAGE := ghcr.io/setcd-io/server
 SETCD_VERSION := etcd-3.6
 
 SETCD := true
+BASELINE := false
 
 ifeq ($(SETCD),true)
 	override ETCD_IMAGE := $(SETCD_IMAGE)
@@ -25,17 +26,24 @@ _preflight:
 	@kubectl krew list | grep -q kuttl || { echo "kuttl plugin not found.\n\tInstall with: kubectl krew install kuttl"; exit 1; }
 
 up:
+ifeq ($(BASELINE),true)
+	@minikube start --kubernetes-version=$(KUBE_VERSION)
+	@minikube kubectl -- config view --minify --flatten > tests/kubeconfig
+else
 	@KUBE_VERSION=$(KUBE_VERSION) GO_VERSION_KUBE=$(GO_VERSION_KUBE) ETCD_IMAGE=$(ETCD_IMAGE) ETCD_VERSION=$(ETCD_VERSION) \
 	docker compose -f tests/docker-compose.yml up --build --pull always --force-recreate --remove-orphans -d
+endif
 
 stats:
 	@docker compose -f tests/docker-compose.yml stats
 
 down:
 	@docker compose -f tests/docker-compose.yml down --remove-orphans
+	@minikube stop || true
 
 clean:
 	@docker compose -f tests/docker-compose.yml down --volumes --remove-orphans
+	@minikube delete
 
 logs:
 	@docker compose -f tests/docker-compose.yml logs -f

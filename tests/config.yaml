@@ -6,3 +6,5 @@ testDirs:
   - jobs
   - deployments
 timeout: 120
+# parallel: 1
+skipDelete: true

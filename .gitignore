@@ -1,2 +1,3 @@
 kubeconfig
 *.out
+.claude
